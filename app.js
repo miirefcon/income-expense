@@ -121,7 +121,8 @@ dataForm.addEventListener('submit', async (e) => {
         amount: safeNumber(dataForm.income.value || dataForm.amount.value),
         change: safeNumber(dataForm.change.value),
         expense: safeNumber(dataForm.expense.value),
-        receiptReceived: dataForm.receipt.checked
+        receiptReceived: dataForm.receipt.checked,
+        technician: dataForm.income.value ? dataForm['technician-income'].value : ''
     };
     
     try {
@@ -155,6 +156,7 @@ async function loadDateData(date) {
                     <td>${item.orNumber || ''}</td>
                     <td>${item.customerTechnician || ''}</td>
                     <td>${item.jobExpense || ''}</td>
+                    <td>${item.technician || ''}</td>
                     <td>${safeNumber(item.amount).toFixed(2)}</td>
                     <td>
                         <button class="edit-btn" data-id="${item.id}">Edit</button>
@@ -209,6 +211,7 @@ async function editEntry(id) {
             dataForm['or-number-income'].value = data.orNumber || '';
             dataForm.customer.value = data.customerTechnician || '';
             dataForm.job.value = data.jobExpense || '';
+            dataForm['technician-income'].value = data.technician || '';
         } else {
             dataForm.amount.value = safeNumber(data.amount);
             dataForm.change.value = safeNumber(data.change);
@@ -255,7 +258,8 @@ async function updateFormHandler(e) {
         amount: safeNumber(dataForm.income.value || dataForm.amount.value),
         change: safeNumber(dataForm.change.value),
         expense: safeNumber(dataForm.expense.value),
-        receiptReceived: dataForm.receipt.checked
+        receiptReceived: dataForm.receipt.checked,
+        technician: dataForm.income.value ? dataForm['technician-income'].value : ''
     };
 
     try {
@@ -315,7 +319,7 @@ function exportPDF() {
         doc.text(customFooter, data.settings.margin.left, pageHeight - 10);
     }
 
-    const incomeHeaders = ['OR Number', 'Customer', 'Job Done', 'Income'];
+    const incomeHeaders = ['OR Number', 'Customer', 'Job Done', 'Technician', 'Income'];
     const expenseHeaders = ['OR Number', 'Technician', 'Description', 'Amount', 'Change', 'Expense', 'Receipt Received'];
 
     const incomeRows = Array.from(incomeTable.rows).map(row => 
