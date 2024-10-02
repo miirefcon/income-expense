@@ -14,6 +14,7 @@ firebase.initializeApp(firebaseConfig);
 const db = firebase.firestore();
 
 // DOM Elements
+
 const tabBtns = document.querySelectorAll('.tab-btn');
 const tabContents = document.querySelectorAll('.tab-content');
 const dataForm = document.getElementById('data-form');
@@ -70,13 +71,15 @@ tabBtns.forEach(btn => {
         tabBtns.forEach(b => b.classList.remove('active'));
         tabContents.forEach(c => c.classList.remove('active'));
         btn.classList.add('active');
-        document.getElementById(`${btn.dataset.tab}-tab`).classList.add('active');
+        const tabContent = document.getElementById(`${btn.dataset.tab}-tab`);
+        tabContent.classList.add('active');
         if (btn.dataset.tab === 'view') {
             loadSummaryData();
         }
+        adjustGrandTotalPosition();
+        localStorage.setItem('activeTab', btn.dataset.tab);
     });
 });
-
 
 // Calculate expense
 function calculateExpense() {
@@ -113,6 +116,7 @@ dataForm.addEventListener('submit', async (e) => {
         type: dataForm.income.value ? 'Income' : 'Expense',
         orNumber: dataForm.income.value ? dataForm['or-number-income'].value : dataForm['or-number-expense'].value,
         customerTechnician: dataForm.income.value ? dataForm.customer.value : dataForm.technician.value,
+        description: dataForm.description ? dataForm.description.value : '',
         jobExpense: dataForm.income.value ? dataForm.job.value : dataForm.expense.value,
         amount: safeNumber(dataForm.income.value || dataForm.amount.value),
         change: safeNumber(dataForm.change.value),
@@ -167,6 +171,7 @@ async function loadDateData(date) {
                 row.innerHTML = `
                     <td>${item.orNumber || ''}</td>
                     <td>${item.customerTechnician || ''}</td>
+                    <td>${item.description || ''}</td>
                     <td>${safeNumber(item.amount).toFixed(2)}</td>
                     <td>${safeNumber(item.change).toFixed(2)}</td>
                     <td>${safeNumber(item.expense).toFixed(2)}</td>
@@ -210,6 +215,7 @@ async function editEntry(id) {
             dataForm.expense.value = safeNumber(data.expense);
             dataForm['or-number-expense'].value = data.orNumber || '';
             dataForm.technician.value = data.customerTechnician || '';
+            dataForm.description.value = data.description || '';
         }
         dataForm.receipt.checked = data.receiptReceived || false;
 
@@ -244,6 +250,7 @@ async function updateFormHandler(e) {
         type: dataForm.income.value ? 'Income' : 'Expense',
         orNumber: dataForm.income.value ? dataForm['or-number-income'].value : dataForm['or-number-expense'].value,
         customerTechnician: dataForm.income.value ? dataForm.customer.value : dataForm.technician.value,
+        description: dataForm.description ? dataForm.description.value : '',
         jobExpense: dataForm.income.value ? dataForm.job.value : dataForm.expense.value,
         amount: safeNumber(dataForm.income.value || dataForm.amount.value),
         change: safeNumber(dataForm.change.value),
@@ -284,7 +291,7 @@ async function deleteEntry(id) {
     }
 }
 
-// PDF export function
+// PDF export function for daily transactions
 function exportPDF() {
     const { jsPDF } = window.jspdf;
     const doc = new jsPDF({
@@ -309,8 +316,7 @@ function exportPDF() {
     }
 
     const incomeHeaders = ['OR Number', 'Customer', 'Job Done', 'Income'];
-    const expenseHeaders = ['OR Number', 'Technician', 'Amount', 'Change', 'Expense', 'Receipt Received'];
-    const receiptHeaders = ['OR Number', 'Type', 'Receipt Received'];
+    const expenseHeaders = ['OR Number', 'Technician', 'Description', 'Amount', 'Change', 'Expense', 'Receipt Received'];
 
     const incomeRows = Array.from(incomeTable.rows).map(row => 
         Array.from(row.cells).slice(0, -1).map(cell => cell.textContent)
@@ -395,9 +401,13 @@ async function loadSummaryData(startDate = null, endDate = null) {
         }, {});
         
         // Display data in summary table
-        summaryTable.innerHTML = '';
+        const summaryTableBody = document.querySelector('#summary-table tbody');
+        summaryTableBody.innerHTML = '';
+        let grandTotalIncome = 0;
+        let grandTotalExpense = 0;
+        
         Object.entries(groupedData).forEach(([date, totals]) => {
-            const row = summaryTable.insertRow();
+            const row = summaryTableBody.insertRow();
             const totalAmount = totals.totalIncome - totals.totalExpense;
             row.innerHTML = `
                 <td>${formatDateForDisplay(date)}</td>
@@ -411,12 +421,118 @@ async function loadSummaryData(startDate = null, endDate = null) {
                 loadDateData(currentDate);
                 document.querySelector('.tab-btn[data-tab="input"]').click();
             });
+            
+            grandTotalIncome += totals.totalIncome;
+            grandTotalExpense += totals.totalExpense;
         });
+        
+        // Update grand totals
+        const grandTotalAmount = grandTotalIncome - grandTotalExpense;
+        document.getElementById('grand-total-income').textContent = grandTotalIncome.toFixed(2);
+        document.getElementById('grand-total-expense').textContent = grandTotalExpense.toFixed(2);
+        document.getElementById('grand-total-amount').textContent = grandTotalAmount.toFixed(2);
+
+        // Adjust the position of the grand total sticky element
+        adjustGrandTotalPosition();
+
+        // Ensure the grand total is visible
+        if (summaryTableBody.rows.length > 0) {
+            const lastVisibleRow = summaryTableBody.rows[summaryTableBody.rows.length - 1];
+            if (lastVisibleRow.offsetTop + lastVisibleRow.offsetHeight > summaryTableBody.offsetHeight) {
+                summaryTableBody.scrollTop = summaryTableBody.scrollHeight;
+            }
+        }
     } catch (error) {
         console.error('Error loading summary data: ', error);
         alert('Error loading summary data. Please try again.');
     }
 }
+
+// Export view data to PDF
+function exportViewPDF() {
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF({
+        orientation: 'landscape',
+        unit: 'mm',
+        format: 'a4'
+    });
+
+    const startDate = document.getElementById('start-date').value;
+    const endDate = document.getElementById('end-date').value;
+    const dateRange = startDate && endDate 
+        ? `(${formatDateForDisplay(startDate)} - ${formatDateForDisplay(endDate)})`
+        : '(All Time)';
+
+    const customHeader = `Income and Expense ${dateRange}`;
+    const customFooter = "MI&I REFRIGERATION AND AIRCONDITIONING SERVICES";
+
+    function addHeaderFooter(data) {
+        doc.setFontSize(14);
+        doc.setTextColor(40);
+        doc.text(customHeader, data.settings.margin.left, 10);
+        const pageWidth = doc.internal.pageSize.width || doc.internal.pageSize.getWidth();
+        const pageHeight = doc.internal.pageSize.height || doc.internal.pageSize.getHeight();
+        doc.setFontSize(10);
+        doc.text(customFooter, pageWidth - data.settings.margin.right - doc.getTextWidth(customFooter), pageHeight - 10);
+    }
+
+    const headers = ['Date', 'Total Income', 'Total Expense', 'Total Amount'];
+    const rows = Array.from(document.querySelectorAll('#summary-table tbody tr')).map(row => 
+        Array.from(row.cells).map(cell => cell.textContent)
+    );
+
+    const grandTotalRow = [
+        { content: 'Grand Total', styles: { fontStyle: 'bold' } },
+        { content: document.getElementById('grand-total-income').textContent, styles: { fontStyle: 'bold' } },
+        { content: document.getElementById('grand-total-expense').textContent, styles: { fontStyle: 'bold' } },
+        { content: document.getElementById('grand-total-amount').textContent, styles: { fontStyle: 'bold' } }
+    ];
+
+    doc.autoTable({
+        head: [headers],
+        body: [...rows, grandTotalRow],
+        startY: 20,
+        theme: 'grid',
+        styles: { fontSize: 8, cellPadding: 2 },
+        headStyles: { fillColor: [44, 62, 80], textColor: [255, 255, 255] },
+        didDrawPage: addHeaderFooter
+    });
+
+    // Save the PDF
+    const fileName = `INCOME&EXPENSE_SUMMARY${dateRange.replace(/[()]/g, '')}.pdf`;
+    doc.save(fileName);
+}
+
+// Add event listener for view PDF export button
+document.getElementById('export-view-pdf').addEventListener('click', async () => {
+    const startDate = document.getElementById('start-date').value;
+    const endDate = document.getElementById('end-date').value;
+    
+    // Reload the summary data if date range is set
+    if (startDate && endDate) {
+        await loadSummaryData(startDate, endDate);
+    }
+    
+    exportViewPDF();
+});
+
+// Adjust grand total position
+function adjustGrandTotalPosition() {
+    const grandTotalSticky = document.getElementById('grand-total-sticky');
+    const summaryTableContainer = document.querySelector('.summary-table-container');
+    const viewTab = document.getElementById('view-tab');
+
+    if (viewTab.classList.contains('active')) {
+        grandTotalSticky.style.display = 'block';
+        summaryTableContainer.style.paddingBottom = `${grandTotalSticky.offsetHeight}px`;
+    } else {
+        grandTotalSticky.style.display = 'none';
+        summaryTableContainer.style.paddingBottom = '0';
+    }
+}
+
+// Add a window resize event listener to adjust the grand total position
+window.addEventListener('resize', adjustGrandTotalPosition);
 
 // Go to present date button
 goToPresentBtn.addEventListener('click', () => {
@@ -448,3 +564,19 @@ dataForm.addEventListener('submit', submitFormHandler);
 // Initial data load
 loadDateData(currentDate);
 loadSummaryData();
+adjustGrandTotalPosition();
+
+// To keep the system on the same page when refreshing, add this code at the end of the file
+window.onload = function() {
+    const selectedSystem = localStorage.getItem('selectedSystem');
+    if (selectedSystem === 'income-expense-tracker') {
+        document.querySelector('.container').style.display = 'none';
+        document.getElementById('income-expense-tracker').style.display = 'block';
+    }
+
+    const activeTab = localStorage.getItem('activeTab');
+    if (activeTab) {
+        document.querySelector(`.tab-btn[data-tab="${activeTab}"]`).click();
+    }
+    adjustGrandTotalPosition();
+};
