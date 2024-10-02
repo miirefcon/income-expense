@@ -38,7 +38,12 @@ function formatDateForStorage(date) {
 // Helper function to format date for display (Month Day, Year)
 function formatDateForDisplay(dateString) {
     const date = new Date(dateString);
-    const options = { year: 'numeric', month: 'long', day: 'numeric' };
+    const options = { 
+        year: 'numeric', 
+        month: 'long', 
+        day: 'numeric',
+        weekday: 'long'
+    };
     return date.toLocaleDateString('en-US', options);
 }
 

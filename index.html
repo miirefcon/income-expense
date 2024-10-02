@@ -11,9 +11,6 @@
     <link rel="stylesheet" href="styles.css">
 </head>
 <body>
-
-    
-
     <div class="container">
         <h1>MI AND I REFRIGERATION AND AIRCONDITIONING SERVICES</h1>
         <p>Please choose a system to continue:</p>
@@ -35,37 +32,39 @@
             <p>Date: <span id="current-date"></span></p>
             <button id="go-to-present">Go Back to Present Date</button>
             <form id="data-form">
-                <div class="form-section">
-                    <h3>Income</h3>
-    <label for="income">Income:</label>
-    <input type="number" id="income" step="0.01">
-    <label for="or-number-income">OR Number:</label>
-    <input type="text" id="or-number-income">
-    <label for="customer">Customer Name:</label>
-    <input type="text" id="customer">
-    <label for="job">Job Done:</label>
-    <input type="text" id="job">
-    <label for="technician-income">Technician:</label>
-    <input type="text" id="technician-income">
-                </div>
-                
-                <div class="form-section">
-                    <h3>Expense</h3>
-                    <label for="technician">Technician:</label>
-                    <input type="text" id="technician">
-                    <label for="description">Description:</label>
-                    <input type="text" id="description">
-                    <label for="or-number-expense">OR Number:</label>
-                    <input type="text" id="or-number-expense">
-                    <label for="amount">Amount:</label>
-                    <input type="number" id="amount" step="0.01">
-                    <label for="change">Change:</label>
-                    <input type="number" id="change" step="0.01">
-                    <label for="expense">Expense:</label>
-                    <input type="number" id="expense" step="0.01" readonly>
-                    <label for="receipt">
-                        <input type="checkbox" id="receipt"> Receipt Received
-                    </label>
+                <div class="form-container">
+                    <div class="form-section">
+                        <h3>Income</h3>
+                        <label for="income">Income:</label>
+                        <input type="number" id="income" step="0.01">
+                        <label for="or-number-income">OR Number:</label>
+                        <input type="text" id="or-number-income">
+                        <label for="customer">Customer Name:</label>
+                        <input type="text" id="customer">
+                        <label for="job">Job Done:</label>
+                        <input type="text" id="job">
+                        <label for="technician-income">Technician:</label>
+                        <input type="text" id="technician-income">
+                    </div>
+                    
+                    <div class="form-section">
+                        <h3>Expense</h3>
+                        <label for="technician">Technician:</label>
+                        <input type="text" id="technician">
+                        <label for="description">Description:</label>
+                        <input type="text" id="description">
+                        <label for="or-number-expense">OR Number:</label>
+                        <input type="text" id="or-number-expense">
+                        <label for="amount">Amount:</label>
+                        <input type="number" id="amount" step="0.01">
+                        <label for="change">Change:</label>
+                        <input type="number" id="change" step="0.01">
+                        <label for="expense">Expense:</label>
+                        <input type="number" id="expense" step="0.01" readonly>
+                        <label for="receipt">
+                            <input type="checkbox" id="receipt"> Receipt Received
+                        </label>
+                    </div>
                 </div>
                 
                 <button type="submit">Submit</button>
@@ -143,6 +142,7 @@
                         <td id="grand-total-amount"></td>
                     </tr>
                 </table>
+            </div>
         </div>
     </div>
 
