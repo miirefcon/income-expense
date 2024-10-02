@@ -77,6 +77,7 @@ tabBtns.forEach(btn => {
     });
 });
 
+
 // Calculate expense
 function calculateExpense() {
     const amount = safeNumber(dataForm.amount.value);
@@ -90,6 +91,22 @@ dataForm.change.addEventListener('input', calculateExpense);
 // Submit form
 dataForm.addEventListener('submit', async (e) => {
     e.preventDefault();
+
+    const submitBtn = e.target.querySelector('button[type="submit"]');
+    if (submitBtn.dataset.editId) {
+        // If editId exists, this is an update operation, prevent double submission
+        return;
+    }
+
+    // Check if at least one input field has data
+    const incomeFields = ['income', 'or-number-income', 'customer', 'job'];
+    const expenseFields = ['technician', 'or-number-expense', 'amount', 'change'];
+    const incomeHasData = incomeFields.some(field => dataForm[field].value.trim() !== '');
+    const expenseHasData = expenseFields.some(field => dataForm[field].value.trim() !== '');
+    if (!incomeHasData && !expenseHasData) {
+        alert('Please fill in at least one field.');
+        return;
+    }
     
     const formData = {
         date: formatDateForStorage(currentDate),
@@ -181,8 +198,7 @@ async function editEntry(id) {
     try {
         const doc = await db.collection('transactions').doc(id).get();
         const data = doc.data();
-        
-        // Populate form with existing data
+
         if (data.type === 'Income') {
             dataForm.income.value = safeNumber(data.amount);
             dataForm['or-number-income'].value = data.orNumber || '';
@@ -196,13 +212,13 @@ async function editEntry(id) {
             dataForm.technician.value = data.customerTechnician || '';
         }
         dataForm.receipt.checked = data.receiptReceived || false;
-        
+
         // Change submit button to update
         const submitBtn = dataForm.querySelector('button[type="submit"]');
         submitBtn.textContent = 'Update';
         submitBtn.dataset.editId = id;
-        
-        // Add event listener for update
+
+        // Switch event listeners
         dataForm.removeEventListener('submit', submitFormHandler);
         dataForm.addEventListener('submit', updateFormHandler);
     } catch (error) {
@@ -214,8 +230,15 @@ async function editEntry(id) {
 // Update form handler
 async function updateFormHandler(e) {
     e.preventDefault();
-    const id = e.target.querySelector('button[type="submit"]').dataset.editId;
-    
+    const submitBtn = e.target.querySelector('button[type="submit"]');
+    const id = submitBtn.dataset.editId;
+
+    if (!id) {
+        // If no editId, fallback to submitting
+        submitFormHandler(e);
+        return;
+    }
+
     const formData = {
         date: formatDateForStorage(currentDate),
         type: dataForm.income.value ? 'Income' : 'Expense',
@@ -227,18 +250,17 @@ async function updateFormHandler(e) {
         expense: safeNumber(dataForm.expense.value),
         receiptReceived: dataForm.receipt.checked
     };
-    
+
     try {
         await db.collection('transactions').doc(id).update(formData);
         alert('Data updated successfully!');
         loadDateData(currentDate);
         dataForm.reset();
-        
+
         // Change update button back to submit
-        const submitBtn = dataForm.querySelector('button[type="submit"]');
         submitBtn.textContent = 'Submit';
         delete submitBtn.dataset.editId;
-        
+
         // Remove update event listener and add submit event listener
         dataForm.removeEventListener('submit', updateFormHandler);
         dataForm.addEventListener('submit', submitFormHandler);
