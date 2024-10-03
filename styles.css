@@ -1,3 +1,36 @@
+#notepad-container {
+    margin-top: 20px;
+    padding: 10px;
+    background-color: #f9f9f9;
+    border-radius: 5px;
+}
+
+#notepad {
+    width: 100%;
+    height: 100px;
+    margin-bottom: 10px;
+    padding: 10px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    resize: vertical;
+}
+
+#save-notes, #copy-notes {
+    padding: 5px 10px;
+    margin-right: 10px;
+    background-color: #007BFF;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+}
+
+#save-notes:hover, #copy-notes:hover {
+    background-color: #0056b3;
+}
+
+
+
 .system-btn {
     width: 220px;
     height: 50px;

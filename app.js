@@ -14,7 +14,6 @@ firebase.initializeApp(firebaseConfig);
 const db = firebase.firestore();
 
 // DOM Elements
-
 const tabBtns = document.querySelectorAll('.tab-btn');
 const tabContents = document.querySelectorAll('.tab-content');
 const dataForm = document.getElementById('data-form');
@@ -29,6 +28,10 @@ const goToPresentBtn = document.getElementById('go-to-present');
 const startDatePicker = document.getElementById('start-date');
 const endDatePicker = document.getElementById('end-date');
 const filterBtn = document.getElementById('filter-btn');
+
+// Variables for sorting
+let sortDirection = 'asc';
+let sortedData = [];
 
 // Helper function to format date for storage (YYYY-MM-DD)
 function formatDateForStorage(date) {
@@ -59,6 +62,10 @@ updateCurrentDate();
 function updateCurrentDate() {
     currentDateSpan.textContent = formatDateForDisplay(currentDate);
     updateGoToPresentButton();
+
+    // Dispatch a custom event when the date changes
+    const event = new CustomEvent('dateChanged', { detail: { date: currentDate } });
+    document.dispatchEvent(event);
 }
 
 function updateGoToPresentButton() {
@@ -340,7 +347,9 @@ function exportPDF() {
         ...expenseRows.map(row => [row[0], 'Expense', row[5]])
     ];
 
-    const totalIncome = totalIncomeSpan.textContent;
+    const totalIncome = totalInc
+
+omeSpan.textContent;
     const totalExpense = totalExpenseSpan.textContent;
     const totalAmount = totalAmountSpan.textContent;
 
@@ -409,52 +418,82 @@ async function loadSummaryData(startDate = null, endDate = null) {
             return acc;
         }, {});
         
+        // Convert grouped data to array for sorting
+        sortedData = Object.entries(groupedData).map(([date, totals]) => ({
+            date,
+            totalIncome: totals.totalIncome,
+            totalExpense: totals.totalExpense,
+            totalAmount: totals.totalIncome - totals.totalExpense
+        }));
+
+        // Initial sort
+        sortDataByDate();
+        
         // Display data in summary table
-        const summaryTableBody = document.querySelector('#summary-table tbody');
-        summaryTableBody.innerHTML = '';
-        let grandTotalIncome = 0;
-        let grandTotalExpense = 0;
-        
-        Object.entries(groupedData).forEach(([date, totals]) => {
-            const row = summaryTableBody.insertRow();
-            const totalAmount = totals.totalIncome - totals.totalExpense;
-            row.innerHTML = `
-                <td>${formatDateForDisplay(date)}</td>
-                <td>${totals.totalIncome.toFixed(2)}</td>
-                <td>${totals.totalExpense.toFixed(2)}</td>
-                <td>${totalAmount.toFixed(2)}</td>
-            `;
-            row.addEventListener('click', () => {
-                currentDate = new Date(date);
-                updateCurrentDate();
-                loadDateData(currentDate);
-                document.querySelector('.tab-btn[data-tab="input"]').click();
-            });
-            
-            grandTotalIncome += totals.totalIncome;
-            grandTotalExpense += totals.totalExpense;
-        });
-        
-        // Update grand totals
-        const grandTotalAmount = grandTotalIncome - grandTotalExpense;
-        document.getElementById('grand-total-income').textContent = grandTotalIncome.toFixed(2);
-        document.getElementById('grand-total-expense').textContent = grandTotalExpense.toFixed(2);
-        document.getElementById('grand-total-amount').textContent = grandTotalAmount.toFixed(2);
-
-        // Adjust the position of the grand total sticky element
-        adjustGrandTotalPosition();
-
-        // Ensure the grand total is visible
-        if (summaryTableBody.rows.length > 0) {
-            const lastVisibleRow = summaryTableBody.rows[summaryTableBody.rows.length - 1];
-            if (lastVisibleRow.offsetTop + lastVisibleRow.offsetHeight > summaryTableBody.offsetHeight) {
-                summaryTableBody.scrollTop = summaryTableBody.scrollHeight;
-            }
-        }
+        displaySummaryData();
     } catch (error) {
         console.error('Error loading summary data: ', error);
         alert('Error loading summary data. Please try again.');
     }
+}
+
+// Sort data by date
+function sortDataByDate() {
+    sortedData.sort((a, b) => {
+        const dateA = new Date(a.date);
+        const dateB = new Date(b.date);
+        return sortDirection === 'asc' ? dateA - dateB : dateB - dateA;
+    });
+}
+
+// Display sorted summary data
+function displaySummaryData() {
+    const summaryTableBody = document.querySelector('#summary-table tbody');
+    summaryTableBody.innerHTML = '';
+    let grandTotalIncome = 0;
+    let grandTotalExpense = 0;
+    
+    sortedData.forEach(({ date, totalIncome, totalExpense, totalAmount }) => {
+        const row = summaryTableBody.insertRow();
+        row.innerHTML = `
+            <td>${formatDateForDisplay(date)}</td>
+            <td>${totalIncome.toFixed(2)}</td>
+            <td>${totalExpense.toFixed(2)}</td>
+            <td>${totalAmount.toFixed(2)}</td>
+        `;
+        row.addEventListener('click', () => {
+            currentDate = new Date(date);
+            updateCurrentDate();
+            loadDateData(currentDate);
+            document.querySelector('.tab-btn[data-tab="input"]').click();
+        });
+        
+        grandTotalIncome += totalIncome;
+        grandTotalExpense += totalExpense;
+    });
+    
+    // Update grand totals
+    const grandTotalAmount = grandTotalIncome - grandTotalExpense;
+    document.getElementById('grand-total-income').textContent = grandTotalIncome.toFixed(2);
+    document.getElementById('grand-total-expense').textContent = grandTotalExpense.toFixed(2);
+    document.getElementById('grand-total-amount').textContent = grandTotalAmount.toFixed(2);
+
+    // Adjust the position of the grand total sticky element
+    adjustGrandTotalPosition();
+}
+
+// Toggle sort direction
+function toggleSortDirection() {
+    sortDirection = sortDirection === 'asc' ? 'desc' : 'asc';
+    sortDataByDate();
+    displaySummaryData();
+    updateSortIcon();
+}
+
+// Update sort icon
+function updateSortIcon() {
+    const dateHeader = document.querySelector('#summary-table th:first-child');
+    dateHeader.innerHTML = `Date ${sortDirection === 'asc' ? '▲' : '▼'}`;
 }
 
 // Export view data to PDF
@@ -569,6 +608,83 @@ function submitFormHandler(e) {
 
 // Add submit event listener
 dataForm.addEventListener('submit', submitFormHandler);
+
+// Notepad functionality
+document.addEventListener('DOMContentLoaded', function() {
+    const notepadTextarea = document.getElementById('notepad');
+    const notepadDateSpan = document.getElementById('notepad-date');
+
+    // Function to format date as YYYY-MM-DD
+    function formatDate(date) {
+        return date.toISOString().split('T')[0];
+    }
+
+    // Load saved notes from Firebase for a specific date
+    async function loadNotes(date) {
+        const formattedDate = formatDate(date);
+        try {
+            const doc = await db.collection('notepad').doc(formattedDate).get();
+            if (doc.exists) {
+                notepadTextarea.value = doc.data().content;
+            } else {
+                notepadTextarea.value = ''; // Clear the textarea if no notes for this date
+            }
+            updateNotepadDate(date);
+        } catch (error) {
+            console.error('Error loading notes:', error);
+        }
+    }
+
+    // Save notes to Firebase for a specific date
+    async function saveNotes(date) {
+        const formattedDate = formatDate(date);
+        try {
+            await db.collection('notepad').doc(formattedDate).set({
+                content: notepadTextarea.value,
+                timestamp: firebase.firestore.FieldValue.serverTimestamp()
+            });
+        } catch (error) {
+            console.error('Error saving notes:', error);
+        }
+    }
+
+    // Update the displayed date for the notepad
+    function updateNotepadDate(date) {
+        notepadDateSpan.textContent = date.toLocaleDateString();
+    }
+
+    // Event listener for date changes in the income and expense tracker
+    document.addEventListener('dateChanged', function(e) {
+        const newDate = e.detail.date;
+        loadNotes(newDate);
+    });
+
+    // Save notes when the textarea content changes
+    notepadTextarea.addEventListener('input', function() {
+        saveNotes(currentDate);
+    });
+
+    // Initial load of notes for the current date
+    loadNotes(currentDate);
+});
+
+// Modify the HTML for the summary table header
+document.addEventListener('DOMContentLoaded', function() {
+    const summaryTableHeader = document.querySelector('#summary-table thead tr');
+    summaryTableHeader.innerHTML = `
+        <th style="cursor: pointer;">Date</th>
+        <th>Total Income</th>
+        <th>Total Expense</th>
+        <th>Total Amount</th>
+    `;
+    
+    // Add click event listener to the Date header
+    const dateHeader = document.querySelector('#summary-table th:first-child');
+    dateHeader.addEventListener('click', toggleSortDirection);
+    
+    // Initial update of sort icon
+    updateSortIcon();
+});
 
 // Initial data load
 loadDateData(currentDate);
