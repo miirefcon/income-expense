@@ -28,6 +28,8 @@ const goToPresentBtn = document.getElementById('go-to-present');
 const startDatePicker = document.getElementById('start-date');
 const endDatePicker = document.getElementById('end-date');
 const filterBtn = document.getElementById('filter-btn');
+const goToDateInput = document.getElementById('go-to-date');
+const goToDateBtn = document.getElementById('go-to-date-btn');
 
 // Variables for sorting
 let sortDirection = 'asc';
@@ -57,11 +59,15 @@ function safeNumber(value) {
 
 // Set current date
 let currentDate = new Date();
-updateCurrentDate();
 
 function updateCurrentDate() {
     currentDateSpan.textContent = formatDateForDisplay(currentDate);
     updateGoToPresentButton();
+
+    // Update the go-to-date input with the current date
+    if (goToDateInput) {
+        goToDateInput.value = formatDateForStorage(currentDate);
+    }
 
     // Dispatch a custom event when the date changes
     const event = new CustomEvent('dateChanged', { detail: { date: currentDate } });
@@ -161,47 +167,53 @@ async function loadDateData(date) {
         let totalIncome = 0;
         let totalExpense = 0;
         
-        data.forEach(item => {
-            if (item.type === 'Income') {
-                const row = incomeTable.insertRow();
-                row.innerHTML = `
-                    <td>${item.orNumber || ''}</td>
-                    <td>${item.customerTechnician || ''}</td>
-                    <td>${item.jobExpense || ''}</td>
-                    <td>${item.technician || ''}</td>
-                    <td>${safeNumber(item.amount).toFixed(2)}</td>
-                    <td>
-                        <button class="edit-btn" data-id="${item.id}">Edit</button>
-                        <button class="delete-btn" data-id="${item.id}">Delete</button>
-                    </td>
-                `;
-                totalIncome += safeNumber(item.amount);
-                
-                // Add event listeners for edit and delete buttons
-                row.querySelector('.edit-btn').addEventListener('click', () => editEntry(item.id));
-                row.querySelector('.delete-btn').addEventListener('click', () => deleteEntry(item.id));
-            } else {
-                const row = expenseTable.insertRow();
-                row.innerHTML = `
-                    <td>${item.orNumber || ''}</td>
-                    <td>${item.customerTechnician || ''}</td>
-                    <td>${item.description || ''}</td>
-                    <td>${safeNumber(item.amount).toFixed(2)}</td>
-                    <td>${safeNumber(item.change).toFixed(2)}</td>
-                    <td>${safeNumber(item.expense).toFixed(2)}</td>
-                    <td>${item.receiptReceived ? 'Yes' : 'No'}</td>
-                    <td>
-                        <button class="edit-btn" data-id="${item.id}">Edit</button>
-                        <button class="delete-btn" data-id="${item.id}">Delete</button>
-                    </td>
-                `;
-                totalExpense += safeNumber(item.expense);
-                
-                // Add event listeners for edit and delete buttons
-                row.querySelector('.edit-btn').addEventListener('click', () => editEntry(item.id));
-                row.querySelector('.delete-btn').addEventListener('click', () => deleteEntry(item.id));
-            }
-        });
+        if (data.length === 0) {
+            // If no data exists for this date, create empty tables
+            createEmptyTable(incomeTable, ['OR Number', 'Customer', 'Job Done', 'Technician', 'Income', 'Actions']);
+            createEmptyTable(expenseTable, ['OR Number', 'Technician', 'Description', 'Amount', 'Change', 'Expense', 'Receipt', 'Actions']);
+        } else {
+            data.forEach(item => {
+                if (item.type === 'Income') {
+                    const row = incomeTable.insertRow();
+                    row.innerHTML = `
+                        <td>${item.orNumber || ''}</td>
+                        <td>${item.customerTechnician || ''}</td>
+                        <td>${item.jobExpense || ''}</td>
+                        <td>${item.technician || ''}</td>
+                        <td>${safeNumber(item.amount).toFixed(2)}</td>
+                        <td>
+                            <button class="edit-btn" data-id="${item.id}">Edit</button>
+                            <button class="delete-btn" data-id="${item.id}">Delete</button>
+                        </td>
+                    `;
+                    totalIncome += safeNumber(item.amount);
+                    
+                    // Add event listeners for edit and delete buttons
+                    row.querySelector('.edit-btn').addEventListener('click', () => editEntry(item.id));
+                    row.querySelector('.delete-btn').addEventListener('click', () => deleteEntry(item.id));
+                } else {
+                    const row = expenseTable.insertRow();
+                    row.innerHTML = `
+                        <td>${item.orNumber || ''}</td>
+                        <td>${item.customerTechnician || ''}</td>
+                        <td>${item.description || ''}</td>
+                        <td>${safeNumber(item.amount).toFixed(2)}</td>
+                        <td>${safeNumber(item.change).toFixed(2)}</td>
+                        <td>${safeNumber(item.expense).toFixed(2)}</td>
+                        <td>${item.receiptReceived ? 'Yes' : 'No'}</td>
+                        <td>
+                            <button class="edit-btn" data-id="${item.id}">Edit</button>
+                            <button class="delete-btn" data-id="${item.id}">Delete</button>
+                        </td>
+                    `;
+                    totalExpense += safeNumber(item.expense);
+                    
+                    // Add event listeners for edit and delete buttons
+                    row.querySelector('.edit-btn').addEventListener('click', () => editEntry(item.id));
+                    row.querySelector('.delete-btn').addEventListener('click', () => deleteEntry(item.id));
+                }
+            });
+        }
         
         totalIncomeSpan.textContent = totalIncome.toFixed(2);
         totalExpenseSpan.textContent = totalExpense.toFixed(2);
@@ -210,6 +222,30 @@ async function loadDateData(date) {
         console.error('Error loading date data: ', error);
         alert('Error loading data. Please try again.');
     }
+}
+
+// Helper function to create an empty table
+function createEmptyTable(tableElement, headers) {
+    const headerRow = tableElement.insertRow();
+    headers.forEach(header => {
+        const th = document.createElement('th');
+        th.textContent = header;
+        headerRow.appendChild(th);
+    });
+    
+    // Add an empty data row
+    const dataRow = tableElement.insertRow();
+    headers.forEach((header) => {
+        const cell = dataRow.insertCell();
+        if (header === 'Actions') {
+            cell.innerHTML = `
+                <button class="edit-btn" disabled>Edit</button>
+                <button class="delete-btn" disabled>Delete</button>
+            `;
+        } else {
+            cell.textContent = '-';
+        }
+    });
 }
 
 // Edit entry
@@ -317,7 +353,7 @@ function exportPDF() {
     });
 
     // Get the date of the income and expense data
-    const dataDate = formatDateForDisplay(currentDate);
+    const  dataDate = formatDateForDisplay(currentDate);
 
     const customHeader = `Income and Expense (${dataDate})`;
     const customFooter = "MI&I REFRIGERATION AND AIRCONDITIONING SERVICES";
@@ -347,9 +383,7 @@ function exportPDF() {
         ...expenseRows.map(row => [row[0], 'Expense', row[5]])
     ];
 
-    const totalIncome = totalInc
-
-omeSpan.textContent;
+    const totalIncome = totalIncomeSpan.textContent;
     const totalExpense = totalExpenseSpan.textContent;
     const totalAmount = totalAmountSpan.textContent;
 
@@ -668,6 +702,31 @@ document.addEventListener('DOMContentLoaded', function() {
     loadNotes(currentDate);
 });
 
+// Function to go to a specific date
+function goToSpecificDate() {
+    const dateString = goToDateInput.value;
+    if (!dateString) {
+        alert('Please select a date');
+        return;
+    }
+
+    const selectedDate = new Date(dateString);
+    if (isNaN(selectedDate.getTime())) {
+        alert('Invalid date');
+        return;
+    }
+
+    currentDate = selectedDate;
+    updateCurrentDate();
+    loadDateData(currentDate);
+
+    // Switch to the input tab
+    document.querySelector('.tab-btn[data-tab="input"]').click();
+}
+
+// Add event listener for the "Go to Date" button
+goToDateBtn.addEventListener('click', goToSpecificDate);
+
 // Modify the HTML for the summary table header
 document.addEventListener('DOMContentLoaded', function() {
     const summaryTableHeader = document.querySelector('#summary-table thead tr');
@@ -686,10 +745,16 @@ document.addEventListener('DOMContentLoaded', function() {
     updateSortIcon();
 });
 
-// Initial data load
-loadDateData(currentDate);
-loadSummaryData();
-adjustGrandTotalPosition();
+// Initialize the application
+function initApp() {
+    updateCurrentDate();
+    loadDateData(currentDate);
+    loadSummaryData();
+    adjustGrandTotalPosition();
+}
+
+// Call initApp when the DOM is fully loaded
+document.addEventListener('DOMContentLoaded', initApp);
 
 // To keep the system on the same page when refreshing, add this code at the end of the file
 window.onload = function() {
